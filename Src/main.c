@@ -104,10 +104,18 @@ char SPIFLASHPath[4];             /* 串行Flash逻辑设备路径 */
 
 static void printf_fatfs_error(FRESULT fresult);
 
+void FatfsMount(void);
+
+void FatfsWrite(void);
+
+void FatfsRead();
+
 BYTE ReadBuffer[512]={0};        /* 读缓冲区 */
 BYTE WriteBuffer[]= "Helloworld,欢迎使用Fatfs文件系统 \r\n";/* 写缓冲区*/  
 
 uint32_t fnum;            					  /* 文件成功读写数量 */
+
+uint32_t ReadIndex = 0;
 
 /* USER CODE END 0 */
 
@@ -145,98 +153,8 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	printf("helloworld...\r\n");
-	 /* 注册一个FatFS设备：串行FLASH */
-  if(FATFS_LinkDriver(&USER_Driver, SPIFLASHPath) == 0)
-  {
-    //在串行FLASH挂载文件系统，文件系统挂载时会对串行FLASH初始化
-    f_res = f_mount(&fs,(TCHAR const*)SPIFLASHPath,1);
-    printf_fatfs_error(f_res);
-    /*----------------------- 格式化测试 ---------------------------*/  
-    /* 如果没有文件系统就格式化创建创建文件系统 */
-    if(f_res == FR_NO_FILESYSTEM)
-    {
-      printf("》串行FLASH还没有文件系统，即将进行格式化...\r\n");
-      /* 格式化 */
-      f_res=f_mkfs((TCHAR const*)SPIFLASHPath,0,0);							
-      
-      if(f_res == FR_OK)
-      {
-        printf("》串行FLASH已成功格式化文件系统。\r\n");
-        /* 格式化后，先取消挂载 */
-        f_res = f_mount(NULL,(TCHAR const*)SPIFLASHPath,1);			
-        /* 重新挂载	*/			
-        f_res = f_mount(&fs,(TCHAR const*)SPIFLASHPath,1);
-      }
-      else
-      {
-        printf("《《格式化失败。》》\n");
-        while(1);
-      }
-    }
-    else if(f_res!=FR_OK)
-    {
-      printf("！！串行FLASH挂载文件系统失败。(%d)\r\n",f_res);
-      printf_fatfs_error(f_res);
-      while(1);
-    }
-    else
-    {
-      printf("》文件系统挂载成功，可以进行读写测试\r\n");
-    }
-    
-    /*----------------------- 文件系统测试：写测试 -----------------------------*/
-    /* 打开文件，如果文件不存在则创建它 */
-    printf("****** 即将进行文件写入测试... ******\r\n");	
-    f_res = f_open(&file, "1234.txt",FA_CREATE_ALWAYS | FA_WRITE );
-    if ( f_res == FR_OK )
-    {
-      printf("》打开/创建FatFs读写测试文件.txt文件成功，向文件写入数据。\r\n");
-      /* 将指定存储区内容写入到文件内 */
-      f_res=f_write(&file,WriteBuffer,sizeof(WriteBuffer),&fnum);
-      if(f_res==FR_OK)
-      {
-        printf("》文件写入成功，写入字节数据：%d\r\n",fnum);
-        printf("》向文件写入的数据为：\n%s\r\n",WriteBuffer);
-      }
-      else
-      {
-        printf("！！文件写入失败：(%d)\r\n",f_res);
-      }    
-      /* 不再读写，关闭文件 */
-      f_close(&file);
-    }
-    else
-    {	
-      printf("！！打开/创建文件失败。\r\n");
-    }
-    
-    /*------------------- 文件系统测试：读测试 ------------------------------------*/
-    printf("****** 即将进行文件读取测试... ******\r\n");
-    f_res = f_open(&file, "1234.txt", FA_OPEN_EXISTING | FA_READ); 	 
-    if(f_res == FR_OK)
-    {
-      printf("》打开文件成功。\n");
-      f_res = f_read(&file, ReadBuffer, sizeof(ReadBuffer), &fnum); 
-      if(f_res==FR_OK)
-      {
-        printf("》文件读取成功,读到字节数据：%d\r\n",fnum);
-        printf("》读取得的文件数据为：\n%s \r\n", ReadBuffer);	
-      }
-      else
-      {
-        printf("！！文件读取失败：(%d)\r\n",f_res);
-      }		
-    }
-    else
-    {
-      printf("！！打开文件失败。\r\n");
-    }
-    /* 不再读写，关闭文件 */
-    f_close(&file);
-    
-    /* 不再使用，取消挂载 */
-//    f_res = f_mount(NULL,(TCHAR const*)SPIFLASHPath,1);	
-  }
+  
+	FatfsMount(  );
     
   /* 注销一个FatFS设备：串行FLASH */
 //  FATFS_UnLinkDriver(SPIFLASHPath);
@@ -249,50 +167,13 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-		 f_res = f_open(&file, "1234.txt",FA_CREATE_ALWAYS | FA_WRITE );
-    if ( f_res == FR_OK )
-    {
-      printf("》打开/创建FatFs读写测试文件.txt文件成功，向文件写入数据。\r\n");
-      /* 将指定存储区内容写入到文件内 */
-      f_res=f_write(&file,WriteBuffer,sizeof(WriteBuffer),&fnum);
-      if(f_res==FR_OK)
-      {
-        printf("》文件写入成功，写入字节数据：%d\r\n",fnum);
-        printf("》向文件写入的数据为：\n%s\r\n",WriteBuffer);
-      }
-      else
-      {
-        printf("！！文件写入失败：(%d)\r\n",f_res);
-      }    
-      /* 不再读写，关闭文件 */
-      f_close(&file);
-    }
-    else
-    {	
-      printf("！！打开/创建文件失败。\r\n");
-    }
-		 f_res = f_open(&file, "1234.txt", FA_OPEN_EXISTING | FA_READ); 	 
-    if(f_res == FR_OK)
-    {
-      printf("》打开文件成功。\n");
-      f_res = f_read(&file, ReadBuffer, sizeof(ReadBuffer), &fnum); 
-      if(f_res==FR_OK)
-      {
-        printf("》文件读取成功,读到字节数据：%d\r\n",fnum);
-        printf("》读取得的文件数据为：\n%s \r\n", ReadBuffer);	
-      }
-      else
-      {
-        printf("！！文件读取失败：(%d)\r\n",f_res);
-      }		
-    }
-    else
-    {
-      printf("！！打开文件失败。\r\n");
-    }
-		f_close(&file);
 		
+		FatfsWrite(  );		
 		HAL_Delay(3000);
+		
+		FatfsRead(  );	
+		HAL_Delay(3000);
+		
 
   }
   /* USER CODE END 3 */
@@ -361,6 +242,124 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+void FatfsMount(void)
+{
+		 /* 注册一个FatFS设备：串行FLASH */
+  if(FATFS_LinkDriver(&USER_Driver, SPIFLASHPath) == 0)
+  {
+    //在串行FLASH挂载文件系统，文件系统挂载时会对串行FLASH初始化
+    f_res = f_mount(&fs,(TCHAR const*)SPIFLASHPath,1);
+    printf_fatfs_error(f_res);
+    /*----------------------- 格式化测试 ---------------------------*/  
+    /* 如果没有文件系统就格式化创建创建文件系统 */
+    if(f_res == FR_NO_FILESYSTEM)
+    {
+      printf("》串行FLASH还没有文件系统，即将进行格式化...\r\n");
+      /* 格式化 */
+      f_res=f_mkfs((TCHAR const*)SPIFLASHPath,0,0);							
+      
+      if(f_res == FR_OK)
+      {
+        printf("》串行FLASH已成功格式化文件系统。\r\n");
+        /* 格式化后，先取消挂载 */
+        f_res = f_mount(NULL,(TCHAR const*)SPIFLASHPath,1);			
+        /* 重新挂载	*/			
+        f_res = f_mount(&fs,(TCHAR const*)SPIFLASHPath,1);
+      }
+      else
+      {
+        printf("《《格式化失败。》》\n");
+        while(1);
+      }
+    }
+    else if(f_res!=FR_OK)
+    {
+      printf("！！串行FLASH挂载文件系统失败。(%d)\r\n",f_res);
+      printf_fatfs_error(f_res);
+      while(1);
+    }
+    else
+    {
+      printf("》文件系统挂载成功，可以进行读写测试\r\n");
+    }
+	}
+}
+
+void FatfsWrite(void)
+{
+ /*----------------------- 文件系统测试：写测试 -----------------------------*/
+	/* 打开文件，如果文件不存在则创建它 */
+	printf("****** 即将进行文件写入测试... ******\r\n");	
+	
+	f_res = f_open(&file, "1234.txt",FA_CREATE_ALWAYS | FA_WRITE );
+	if ( f_res == FR_OK )
+	{
+		for(uint16_t i = 0; i < 200; ++i)
+		{
+			printf("》打开/创建FatFs读写测试文件.txt文件成功，向文件写入数据。f_size = %ld\r\n",f_size(&file));
+			/* 将指定存储区内容写入到文件内 */
+				
+			f_lseek(&file, f_size(&file));
+			f_res=f_write(&file,WriteBuffer,sizeof(WriteBuffer),&fnum);
+			if(f_res==FR_OK)
+			{
+				printf("》文件写入成功，写入字节数据：%d\r\n",fnum);
+				printf("》向文件写入的数据为：\n%s\r\n",WriteBuffer);
+			}
+			else
+			{
+				printf("！！文件写入失败：(%d)\r\n",f_res);
+			}    
+		}
+		/* 不再读写，关闭文件 */
+		f_close(&file);
+	}
+	else
+	{	
+		printf("！！打开/创建文件失败。\r\n");
+	}
+}
+
+void FatfsRead()
+{
+	f_res = f_open(&file, "1234.txt", FA_OPEN_EXISTING | FA_READ); 	 
+	
+	printf("》读到总字节数据：%ld\r\n",f_size(&file));
+	if(f_res == FR_OK)
+	{
+		printf("》打开文件成功。\n");
+		
+		while(ReadIndex != f_size(&file))
+		{
+			f_lseek(&file, ReadIndex);
+			
+			f_res = f_read(&file, ReadBuffer, sizeof(ReadBuffer), &fnum); 
+			if(f_res==FR_OK)
+			{
+				printf("》文件读取成功,读到字节数据：%d\r\n",fnum);
+				printf("》读取得的文件数据为：\n%s \r\n", ReadBuffer);
+				ReadIndex += 36;
+				
+				printf("读到字节数据：%d\r\n",ReadIndex);
+			}
+			else
+			{
+				printf("！！文件读取失败：(%d)\r\n",f_res);
+			}		
+		}
+	}
+	else
+	{
+		printf("！！打开文件失败。\r\n");
+	}
+	/* 不再读写，关闭文件 */
+	f_close(&file);
+	
+	/* 不再使用，取消挂载 */
+//	f_res = f_mount(NULL,(TCHAR const*)SPIFLASHPath,1);	
+}
 
 /**
   * 函数功能: FatFS文件系统操作结果信息处理.
